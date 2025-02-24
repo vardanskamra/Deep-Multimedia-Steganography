@@ -1,6 +1,6 @@
 import torch
 from utils.inference import inference, remove_module_prefix
-from models.model_2 import PrepNetwork, HidingNetwork, RevealNetwork
+from models.model_3 import PrepNetwork, HidingNetwork, RevealNetwork
 
 device=torch.device("cpu")
 
@@ -8,9 +8,9 @@ prep_net = PrepNetwork()
 hide_net = HidingNetwork()
 reveal_net = RevealNetwork()
 
-prep_net.load_state_dict(remove_module_prefix(torch.load("models/model_2/prep_net.pth", map_location=device)))
-hide_net.load_state_dict(remove_module_prefix(torch.load("models/model_2/hide_net.pth", map_location=device)))
-reveal_net.load_state_dict(remove_module_prefix(torch.load("models/model_2/reveal_net.pth", map_location=device)))
+prep_net.load_state_dict(remove_module_prefix(torch.load("models/model_3/prep_net.pth", map_location=device)))
+hide_net.load_state_dict(remove_module_prefix(torch.load("models/model_3/hide_net.pth", map_location=device)))
+reveal_net.load_state_dict(remove_module_prefix(torch.load("models/model_3/reveal_net.pth", map_location=device)))
 
 prep_net.to(device)
 hide_net.to(device)
