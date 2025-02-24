@@ -14,5 +14,5 @@ inference_transform = transforms.Compose([
 simple_train_test_transform = transforms.Compose([
     transforms.Resize((128, 128)),
     transforms.ToTensor(),
-    transforms.ConvertImageDtype(torch.float32)
+    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))   # Normalize to [-1, 1]
 ])
