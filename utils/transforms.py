@@ -11,8 +11,9 @@ inference_transform = transforms.Compose([
     transforms.Resize((128, 128))
 ])
 
-simple_train_test_transform = transforms.Compose([
+caltech256_train_test_transform = transforms.Compose([
     transforms.Resize((128, 128)),
+    transforms.Lambda(lambda img: img.convert("RGB")),
     transforms.ToTensor(),
     transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))   # Normalize to [-1, 1]
 ])
