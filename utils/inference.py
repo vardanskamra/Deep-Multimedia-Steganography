@@ -1,5 +1,6 @@
 import torch
 import torchvision
+from collections import OrderedDict
 from utils.transforms import inference_transform
 from utils.visualizations import visualize_images
 
@@ -36,4 +37,10 @@ def inference(cover_path,
                         stego.cpu().squeeze(0), 
                         secret_revealed.cpu().squeeze(0))
 
-    
+# Function to remove 'module.' prefix if the model was trained with DataParallel
+def remove_module_prefix(state_dict):
+    new_state_dict = OrderedDict()
+    for key, value in state_dict.items():
+        new_key = key.replace("module.", "")
+        new_state_dict[new_key] = value
+    return new_state_dict

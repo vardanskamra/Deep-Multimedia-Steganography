@@ -3,5 +3,6 @@ matplotlib
 torch
 torchmetrics
 torchvision
+torchinfo
 pillow
 ipykernel
