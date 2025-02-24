@@ -10,3 +10,9 @@ train_test_transform = transforms.Compose([
 inference_transform = transforms.Compose([
     transforms.Resize((128, 128))
 ])
+
+simple_train_test_transform = transforms.Compose([
+    transforms.Resize((128, 128)),
+    transforms.ToTensor(),
+    transforms.ConvertImageDtype(torch.float32)
+])
