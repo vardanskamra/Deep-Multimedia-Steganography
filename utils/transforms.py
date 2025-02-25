@@ -17,3 +17,10 @@ caltech256_train_test_transform = transforms.Compose([
     transforms.ToTensor(),
     transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))   # Normalize to [-1, 1]
 ])
+
+caltech256_train_test_transform_256x256 = transforms.Compose([
+    transforms.Resize((256, 256)),
+    transforms.Lambda(lambda img: img.convert("RGB")),
+    transforms.ToTensor(),
+    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))   # Normalize to [-1, 1]
+])
