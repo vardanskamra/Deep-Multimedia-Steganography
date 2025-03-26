@@ -238,8 +238,6 @@ def train(prep_net: torch.nn.Module,
             'nc': [], 'pixel_loss_cover_stego': [], 'pixel_loss_secret_revealed': []
         }
 
-    from utils.metrics import normalized_correlation  # assumed available
-
     # Initialize GradScaler with the new API:
     scaler = GradScaler(device='cuda')
 
@@ -350,8 +348,6 @@ def test(prep_net: nn.Module,
     total_pixel_loss_secret_revealed = 0.0
     num_batches = 0
 
-    from utils.metrics import normalized_correlation  # assumed available
-    from utils.visualizations import visualize_images  # assumed available
 
     with torch.inference_mode():
         for i, (images, _) in enumerate(dataloader):
