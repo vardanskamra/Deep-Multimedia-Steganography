@@ -4,6 +4,7 @@ import torchvision
 import random
 import numpy as np
 import torch.nn as nn
+import torch.nn.functional as F
 import torchvision.transforms as T
 from torchvision.transforms import functional as TF
 from PIL import Image
