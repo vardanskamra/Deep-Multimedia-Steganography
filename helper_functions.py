@@ -30,7 +30,7 @@ def normalized_correlation(x, y):
 
 ### Transforms
 
-caltech256_train_test_transform_256x256 = T.Compose([
+transform = T.Compose([
     T.Resize((256, 256)),
     T.Lambda(lambda img: img.convert("RGB")),
     T.ToTensor(),
@@ -200,7 +200,7 @@ def plot_metrics(metrics):
 
 ### Train Loop
 
-def train_with_attacks(prep_net: torch.nn.Module,
+def train(prep_net: torch.nn.Module,
                        hide_net: torch.nn.Module,
                        reveal_net: torch.nn.Module,
                        dataloader: torch.utils.data.DataLoader,
@@ -316,7 +316,7 @@ def train_with_attacks(prep_net: torch.nn.Module,
 
 ### Test Loop
 
-def test_with_attacks(prep_net: nn.Module,
+def test(prep_net: nn.Module,
                       hide_net: nn.Module,
                       reveal_net: nn.Module,
                       dataloader: torch.utils.data.DataLoader,
