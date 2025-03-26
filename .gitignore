@@ -181,3 +181,4 @@ cython_debug/
 frames/
 stego_frames/
 models/*.pth
+models/**/*.pth
