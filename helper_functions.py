@@ -254,7 +254,7 @@ def train(prep_net: torch.nn.Module,
             if i % 2 == 0:
                 cover = images.to(device)
             else:
-                secret = images.to(device)
+                secret = TF.resize(images.to(device), (128, 128))
                 optimizer.zero_grad()
 
                 # Use mixed precision autocast
@@ -354,7 +354,7 @@ def test(prep_net: nn.Module,
             if i % 2 == 0:
                 cover = images.to(device)
             else:
-                secret = images.to(device)
+                secret = TF.resize(images.to(device), (128, 128))
                 secret_prepared = prep_net(secret)
                 stego = hide_net(cover, secret_prepared)
                 # Apply the specified attack(s) (can be a single attack or a list)
@@ -393,3 +393,114 @@ def test(prep_net: nn.Module,
           f"Pixel Loss (Secret-Revealed): {metrics['pixel_loss_secret_revealed'][-1]:.4f}\n")
 
     return metrics
+
+
+"""
+def run():
+    
+    import os
+    from torchvision import datasets
+    from torch.utils.data import DataLoader
+    
+    
+    try:
+        import torchmetrics
+    except ImportError:
+        import subprocess
+        subprocess.check_call(["pip", "install", "torchmetrics"])
+        import torchmetrics
+        
+        
+    try:
+        from torchinfo import summary
+    except ImportError:
+        import subprocess
+        subprocess.check_call(["pip", "install", "torchinfo"])
+        from torchinfo import summary
+        
+        
+    repo_url = "https://raw.githubusercontent.com/vardanskamra/Deep-Multimedia-Steganography/main"
+    file = "helper_functions.py"
+    file_url = f"{repo_url}/{file}"
+    os.system(f"curl -s -f {file_url} -o {file}")
+    print("Downloaded all file successfully!")
+    
+    
+    from helper_functions import (loss_function, 
+    train, 
+    test,
+    random_attack, 
+    apply_attacks,
+    plot_metrics,
+    visualize_images)
+    from helper_functions import transform
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    
+    
+    dataset = datasets.Caltech256(root='./data', download=True, transform=transform)
+    subset_size = int(1 * len(dataset))  
+    train_size = int(0.8 * subset_size)  
+    test_size = subset_size - train_size  
+    subset_dataset, _ = torch.utils.data.random_split(dataset, [subset_size, len(dataset) - subset_size])
+    train_dataset, test_dataset = torch.utils.data.random_split(subset_dataset, [train_size, test_size])
+    train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=os.cpu_count(), drop_last=True)
+    test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False, drop_last=True)
+    
+    
+    print(f"Train Dataset Length: {len(train_dataset)}")
+    print(f"Test Dataset Length: {len(test_dataset)}")
+    print(f"Train DataLoader Length: {len(train_loader)}")
+    print(f"Test DataLoader Length: {len(test_loader)}")
+    sample, label = next(iter(train_loader))
+    print(f"Sample Shape: {sample.shape}")
+    print(f"Label Shape: {label.shape}")
+    
+    
+    
+    
+    
+    print(f"Device: {device}")
+    prep_net = nn.DataParallel(PrepNetwork()).to(device)
+    hide_net = nn.DataParallel(HidingNetwork()).to(device)
+    reveal_net = nn.DataParallel(RevealNetwork()).to(device)
+        
+        
+    print("PrepNetwork Summary:")
+    print(summary(prep_net, input_size=(32, 3, 256, 256)))
+    cover = torch.randn(32, 3, 256, 256).to(device)
+    secret_prepared = torch.randn(32, 3, 256, 256).to(device)
+    print("\nHidingNetwork Summary:")
+    print(summary(hide_net, input_data=[cover, secret_prepared])) # 6 channels (cover + secret_prepared)
+    print("\nRevealNetwork Summary:")
+    print(summary(reveal_net, input_size=(32, 3, 256, 256)))
+    
+    
+    optimizer = torch.optim.Adam(list(prep_net.parameters()) +
+                       list(hide_net.parameters()) +
+                       list(reveal_net.parameters()), lr=0.001)
+    
+    
+    train_metrics = train(dataloader=train_loader,
+                prep_net=prep_net,
+                hide_net=hide_net,
+                reveal_net=reveal_net,
+                optimizer=optimizer,
+                loss_fn=loss_function,
+                beta=1.25,
+                epochs=5,
+                checkpoint=None,
+                device=device)
+    plot_metrics(train_metrics)
+    test_metrics = test(prep_net=prep_net,
+               hide_net=hide_net,
+               reveal_net=reveal_net,
+               dataloader=test_loader,
+               loss_fn = loss_function,
+               beta = 1.25,
+               visualize = 2,
+               attacks=None,                  
+               device=device)
+    torch.save(prep_net.state_dict(), "/kaggle/working/prep_net.pth")
+    torch.save(hide_net.state_dict(), "/kaggle/working/hide_net.pth")
+    torch.save(reveal_net.state_dict(), "/kaggle/working/reveal_net.pth")
+"""
