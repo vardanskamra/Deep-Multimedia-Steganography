@@ -290,7 +290,7 @@ def train(prep_net: torch.nn.Module,
                     pixel_loss_cover_stego = F.l1_loss(cover, stego)
                     pixel_loss_secret_revealed = F.l1_loss(secret, secret_revealed)
 
-                epoch_loss += total_loss.item()
+                epoch_loss += total_loss
                 epoch_psnr += psnr_value.item()
                 epoch_ssim += ssim_value.item()
                 epoch_nc += nc_value.item()
@@ -381,7 +381,7 @@ def test(prep_net: nn.Module,
                 pixel_loss_cover_stego = F.l1_loss(cover, stego)
                 pixel_loss_secret_revealed = F.l1_loss(secret, secret_revealed)
 
-                total_loss += loss.item()
+                total_loss += loss
                 total_psnr += psnr_value.item()
                 total_ssim += ssim_value.item()
                 total_nc += nc_value.item()
