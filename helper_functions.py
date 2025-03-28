@@ -331,7 +331,6 @@ def test(prep_net: nn.Module,
                       hide_net: nn.Module,
                       reveal_net: nn.Module,
                       dataloader: torch.utils.data.DataLoader,
-                      loss_fn,
                       beta=0.75,
                       attacks=None,
                       visualize=5, # Visualize after every 5 batches
@@ -373,7 +372,9 @@ def test(prep_net: nn.Module,
                 attacked_stego = apply_attacks(stego, attacks)
                 secret_revealed = reveal_net(attacked_stego)
 
-                loss = loss_fn(cover, stego, secret, secret_revealed, beta=beta)
+                cover_loss = F.mse_loss(stego, cover)  
+                secret_loss = F.mse_loss(secret_revealed, secret)
+                loss = cover_loss.item() + beta * secret_loss.item()
                 psnr_value = psnr(stego, cover)
                 ssim_value = ssim(stego, cover)
                 nc_value = normalized_correlation(secret, secret_revealed)
