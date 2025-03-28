@@ -15,11 +15,6 @@ from torchmetrics import PeakSignalNoiseRatio, StructuralSimilarityIndexMeasure
 
 ### Metrics:
 
-def loss_function(cover, cover_pred, secret, secret_pred, beta=0.75):
-  cover_loss = torch.nn.functional.mse_loss(cover, cover_pred)
-  secret_loss = torch.nn.functional.mse_loss(secret, secret_pred)
-  return cover_loss + beta * secret_loss
-
 def normalized_correlation(x, y):
     x_mean = torch.mean(x)
     y_mean = torch.mean(y)
@@ -199,6 +194,7 @@ def plot_metrics(metrics):
 
 
 
+
 ### Train Loop
 
 def train(prep_net: torch.nn.Module,
@@ -206,7 +202,6 @@ def train(prep_net: torch.nn.Module,
                        reveal_net: torch.nn.Module,
                        dataloader: torch.utils.data.DataLoader,
                        optimizer: torch.optim.Optimizer,
-                       loss_fn,
                        beta=0.75,
                        epochs=50,
                        device=None,
@@ -265,13 +260,29 @@ def train(prep_net: torch.nn.Module,
                     attacked_stego = random_attack(stego)
                     secret_revealed = reveal_net(attacked_stego)
 
-                    loss = loss_fn(cover, stego, secret, secret_revealed, beta=beta)
+                     # --- Compute partial losses ---
+                    cover_loss = F.mse_loss(stego, cover)  # cover reconstruction
+                    secret_loss = F.mse_loss(secret_revealed, secret)  # secret reconstruction
                 
-                # Scale loss and backpropagate
-                scaler.scale(loss).backward()
+                # 1) Backprop cover-loss to Prep+Hide only 
+                # Temporarily freeze Reveal net so it doesn't get gradients from cover_loss
+                for param in reveal_net.parameters():
+                    param.requires_grad = False
+                # Backprop cover_loss
+                scaler.scale(cover_loss).backward(retain_graph=True)
+                # Unfreeze Reveal net
+                for param in reveal_net.parameters():
+                    param.requires_grad = True
+
+                # 2) Backprop secret-loss to ALL networks 
+                scaler.scale(beta * secret_loss).backward()
+                # Now we can step the optimizer once
                 scaler.step(optimizer)
                 scaler.update()
 
+                # For logging & metrics
+                total_loss = cover_loss.item() + beta * secret_loss.item()
+                
                 with torch.no_grad():
                     psnr_value = psnr(stego, cover)
                     ssim_value = ssim(stego, cover)
@@ -279,7 +290,7 @@ def train(prep_net: torch.nn.Module,
                     pixel_loss_cover_stego = F.l1_loss(cover, stego)
                     pixel_loss_secret_revealed = F.l1_loss(secret, secret_revealed)
 
-                epoch_loss += loss.item()
+                epoch_loss += total_loss.item()
                 epoch_psnr += psnr_value.item()
                 epoch_ssim += ssim_value.item()
                 epoch_nc += nc_value.item()
@@ -310,6 +321,7 @@ def train(prep_net: torch.nn.Module,
         torch.save(checkpoint, "model_checkpoint.pth")
 
     return metrics
+
 
 
 
@@ -393,6 +405,7 @@ def test(prep_net: nn.Module,
           f"Pixel Loss (Secret-Revealed): {metrics['pixel_loss_secret_revealed'][-1]:.4f}\n")
 
     return metrics
+
 
 
 """
