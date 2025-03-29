@@ -201,7 +201,8 @@ def train(prep_net: torch.nn.Module,
                        hide_net: torch.nn.Module,
                        reveal_net: torch.nn.Module,
                        dataloader: torch.utils.data.DataLoader,
-                       optimizer: torch.optim.Optimizer,
+                       optimizer_prep_hide: torch.optim.Optimizer,
+                       optimizer_reveal: torch.optim.Optimizer,
                        beta=0.75,
                        epochs=50,
                        device=None,
@@ -227,7 +228,8 @@ def train(prep_net: torch.nn.Module,
         prep_net.load_state_dict(checkpoint['prep_net_state_dict'])
         hide_net.load_state_dict(checkpoint['hide_net_state_dict'])
         reveal_net.load_state_dict(checkpoint['reveal_net_state_dict'])
-        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        optimizer_prep_hide.load_state_dict(checkpoint['optimizer_prep_hide_state_dict'])
+        optimizer_reveal.load_state_dict(checkpoint['optimizer_reveal_state_dict'])
         start_epoch = checkpoint['epoch']
         metrics = checkpoint.get('metrics', {
             'loss': [], 'psnr': [], 'ssim': [],
@@ -256,7 +258,6 @@ def train(prep_net: torch.nn.Module,
                 cover = images.to(device)
             else:
                 secret = TF.resize(images.to(device), (128, 128))
-                optimizer.zero_grad()
 
                 # Use mixed precision autocast
                 with autocast(device_type='cuda'):
@@ -270,26 +271,19 @@ def train(prep_net: torch.nn.Module,
                     cover_loss = F.mse_loss(stego, cover)  # cover reconstruction
                     secret_loss = F.mse_loss(secret_revealed, secret)  # secret reconstruction
                 
-                # 1) Backprop cover-loss to Prep+Hide only 
-                # Temporarily freeze Reveal net so it doesn't get gradients from cover_loss
-                for param in reveal_net.parameters():
-                    param.requires_grad = False
-                # Backprop cover_loss
+                # Backprop cover loss for prep/hide:
+                optimizer_prep_hide.zero_grad()
                 scaler.scale(cover_loss).backward(retain_graph=True)
-                # Unfreeze Reveal net
-                for param in reveal_net.parameters():
-                    param.requires_grad = True
+                scaler.unscale_(optimizer_prep_hide)
+                torch.nn.utils.clip_grad_norm_(list(prep_net.parameters()) + list(hide_net.parameters()), max_norm=1.0)
+                optimizer_prep_hide.step()
 
-                # 2) Backprop secret-loss to ALL networks 
+                # Backprop secret loss for all networks (including reveal):
+                optimizer_reveal.zero_grad()
                 scaler.scale(beta * secret_loss).backward()
-                
-                # Unscale gradients and apply gradient clipping
-                scaler.unscale_(optimizer)
-                torch.nn.utils.clip_grad_norm_(list(prep_net.parameters()) +
-                                       list(hide_net.parameters()) +
-                                       list(reveal_net.parameters()),
-                                       max_norm=1.0)
-                scaler.step(optimizer)
+                scaler.unscale_(optimizer_reveal)
+                torch.nn.utils.clip_grad_norm_(list(reveal_net.parameters()), max_norm=1.0)
+                optimizer_reveal.step()
                 scaler.update()
                 
                 # For logging & metrics
@@ -326,7 +320,8 @@ def train(prep_net: torch.nn.Module,
             'prep_net_state_dict': prep_net.state_dict(),
             'hide_net_state_dict': hide_net.state_dict(),
             'reveal_net_state_dict': reveal_net.state_dict(),
-            'optimizer_state_dict': optimizer.state_dict(),
+            'optimizer_prep_hide_state_dict': optimizer_prep_hide.state_dict(),
+            'optimizer_reveal_state_dict': optimizer_reveal.state_dict(),
             'metrics': metrics
         }
         torch.save(checkpoint, "model_checkpoint.pth")
