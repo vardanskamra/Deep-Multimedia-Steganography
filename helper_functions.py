@@ -205,6 +205,9 @@ def train(prep_net: torch.nn.Module,
                        optimizer_reveal: torch.optim.Optimizer,
                        beta=0.75,
                        epochs=50,
+                       prep_hide_max_norm=1.0,
+                       reveal_max_norm=2.0,
+                       attacks=True,
                        device=None,
                        checkpoint=None):
     if device is None:
@@ -263,9 +266,13 @@ def train(prep_net: torch.nn.Module,
                 with autocast(device_type='cuda'):
                     secret_prepared = prep_net(secret)
                     stego = hide_net(cover, secret_prepared)
-                    # Apply a random attack during training
-                    attacked_stego = random_attack(stego)
-                    secret_revealed = reveal_net(attacked_stego)
+                    
+                    if attacks:
+                        # Apply a random attack during training
+                        attacked_stego = random_attack(stego)
+                        secret_revealed = reveal_net(attacked_stego)
+                    else:
+                        secret_revealed = reveal_net(stego)
 
                      # --- Compute partial losses ---
                     cover_loss = F.mse_loss(stego, cover)  # cover reconstruction
@@ -275,14 +282,14 @@ def train(prep_net: torch.nn.Module,
                 optimizer_prep_hide.zero_grad()
                 scaler.scale(cover_loss).backward(retain_graph=True)
                 scaler.unscale_(optimizer_prep_hide)
-                torch.nn.utils.clip_grad_norm_(list(prep_net.parameters()) + list(hide_net.parameters()), max_norm=1.0)
+                torch.nn.utils.clip_grad_norm_(list(prep_net.parameters()) + list(hide_net.parameters()), max_norm=prep_hide_max_norm)
                 optimizer_prep_hide.step()
 
                 # Backprop secret loss for all networks (including reveal):
                 optimizer_reveal.zero_grad()
                 scaler.scale(beta * secret_loss).backward()
                 scaler.unscale_(optimizer_reveal)
-                torch.nn.utils.clip_grad_norm_(list(reveal_net.parameters()), max_norm=1.0)
+                torch.nn.utils.clip_grad_norm_(list(reveal_net.parameters()), max_norm=reveal_max_norm)
                 optimizer_reveal.step()
                 scaler.update()
                 
