@@ -282,13 +282,18 @@ def train(prep_net: torch.nn.Module,
 
                 # 2) Backprop secret-loss to ALL networks 
                 scaler.scale(beta * secret_loss).backward()
-                # Now we can step the optimizer once
+                
+                # Unscale gradients and apply gradient clipping
+                scaler.unscale_(optimizer)
+                torch.nn.utils.clip_grad_norm_(list(prep_net.parameters()) +
+                                       list(hide_net.parameters()) +
+                                       list(reveal_net.parameters()),
+                                       max_norm=1.0)
                 scaler.step(optimizer)
                 scaler.update()
-
+                
                 # For logging & metrics
                 total_loss = cover_loss.item() + beta * secret_loss.item()
-                
                 with torch.no_grad():
                     psnr_value = psnr(stego, cover)
                     ssim_value = ssim(stego, cover)
