@@ -400,12 +400,12 @@ def test(prep_net: nn.Module,
                 
                 current_psnr = psnr(stego, cover)  
                 current_ssim = ssim(stego, cover)    
-                psnr_loss = 1.0 / (current_psnr + eps)
-                ssim_loss = 1.0 - current_ssim
+                psnr_loss = 1.0 / (current_psnr.clamp(min=eps) + eps)
+                ssim_loss = 1.0 - current_ssim.clamp(min=0.0, max=1.0)
                 cover_loss_total = mse_cover_loss + lambda_psnr * psnr_loss + lambda_ssim * ssim_loss
                 
                 current_nc = normalized_correlation(secret.float(), secret_revealed.float())
-                nc_loss = 1.0 - current_nc
+                nc_loss = 1.0 - current_nc.clamp(min=-1.0, max=1.0)
                 secret_loss_total = mse_secret_loss + lambda_nc * nc_loss
                 
                 loss = cover_loss_total.item() + beta * secret_loss_total.item()
