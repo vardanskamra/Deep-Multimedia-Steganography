@@ -215,6 +215,12 @@ def train(prep_net: torch.nn.Module,
     
     psnr = PeakSignalNoiseRatio().to(device)
     ssim = StructuralSimilarityIndexMeasure(data_range=1.0).to(device)
+    
+    # Hyperparameters for additional loss components:
+    lambda_psnr = 0.2
+    lambda_ssim = 0.2
+    lambda_nc   = 0.2
+    eps = 1e-8  # to avoid division by zero
 
     start_epoch = 0
     if checkpoint:
@@ -261,27 +267,39 @@ def train(prep_net: torch.nn.Module,
                     secret_revealed = reveal_net(attacked_stego)
 
                      # --- Compute partial losses ---
-                    cover_loss = F.mse_loss(stego, cover)  # cover reconstruction
-                    secret_loss = F.mse_loss(secret_revealed, secret)  # secret reconstruction
+                    mse_cover_loss = F.mse_loss(stego, cover)  # cover reconstruction
+                    mse_secret_loss = F.mse_loss(secret_revealed, secret)  # secret reconstruction
+                    
+                     # For cover: we want high PSNR and SSIM.
+                    current_psnr = psnr(stego, cover)  # Higher is better.
+                    current_ssim = ssim(stego, cover)    # In [0,1], higher is better.
+                    psnr_loss = 1.0 / (current_psnr + eps)
+                    ssim_loss = 1.0 - current_ssim
+                    cover_loss_total = mse_cover_loss + lambda_psnr * psnr_loss + lambda_ssim * ssim_loss
+                    
+                    # For secret: we want high normalized correlation (NC).
+                    current_nc = normalized_correlation(secret.float(), secret_revealed.float())
+                    nc_loss = 1.0 - current_nc
+                    secret_loss_total = mse_secret_loss + lambda_nc * nc_loss
                 
                 # 1) Backprop cover-loss to Prep+Hide only 
                 # Temporarily freeze Reveal net so it doesn't get gradients from cover_loss
                 for param in reveal_net.parameters():
                     param.requires_grad = False
                 # Backprop cover_loss
-                scaler.scale(cover_loss).backward(retain_graph=True)
+                scaler.scale(cover_loss_total).backward(retain_graph=True)
                 # Unfreeze Reveal net
                 for param in reveal_net.parameters():
                     param.requires_grad = True
 
                 # 2) Backprop secret-loss to ALL networks 
-                scaler.scale(beta * secret_loss).backward()
+                scaler.scale(beta * secret_loss_total).backward()
                 # Now we can step the optimizer once
                 scaler.step(optimizer)
                 scaler.update()
 
                 # For logging & metrics
-                total_loss = cover_loss.item() + beta * secret_loss.item()
+                total_loss = cover_loss_total.item() + beta * secret_loss_total.item()
                 
                 with torch.no_grad():
                     psnr_value = psnr(stego, cover)
@@ -342,9 +360,14 @@ def test(prep_net: nn.Module,
     hide_net.eval()
     reveal_net.eval()
     
-    from torchmetrics import PeakSignalNoiseRatio, StructuralSimilarityIndexMeasure
     psnr = PeakSignalNoiseRatio().to(device)
     ssim = StructuralSimilarityIndexMeasure(data_range=1.0).to(device)
+    
+    # Hyperparameters for additional loss components:
+    lambda_psnr = 0.2
+    lambda_ssim = 0.2
+    lambda_nc   = 0.2
+    eps = 1e-8  # to avoid division by zero
     
     metrics = {
         'loss': [], 'psnr': [], 'ssim': [],
@@ -372,9 +395,20 @@ def test(prep_net: nn.Module,
                 attacked_stego = apply_attacks(stego, attacks)
                 secret_revealed = reveal_net(attacked_stego)
 
-                cover_loss = F.mse_loss(stego, cover)  
-                secret_loss = F.mse_loss(secret_revealed, secret)
-                loss = cover_loss.item() + beta * secret_loss.item()
+                mse_cover_loss = F.mse_loss(stego, cover)  
+                mse_secret_loss = F.mse_loss(secret_revealed, secret)
+                
+                current_psnr = psnr(stego, cover)  
+                current_ssim = ssim(stego, cover)    
+                psnr_loss = 1.0 / (current_psnr + eps)
+                ssim_loss = 1.0 - current_ssim
+                cover_loss_total = mse_cover_loss + lambda_psnr * psnr_loss + lambda_ssim * ssim_loss
+                
+                current_nc = normalized_correlation(secret.float(), secret_revealed.float())
+                nc_loss = 1.0 - current_nc
+                secret_loss_total = mse_secret_loss + lambda_nc * nc_loss
+                
+                loss = cover_loss_total.item() + beta * secret_loss_total.item()
                 psnr_value = psnr(stego, cover)
                 ssim_value = ssim(stego, cover)
                 nc_value = normalized_correlation(secret, secret_revealed)
