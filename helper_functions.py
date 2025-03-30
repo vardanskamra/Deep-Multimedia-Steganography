@@ -260,7 +260,7 @@ def train(prep_net: torch.nn.Module,
             if i % 2 == 0:
                 cover = images.to(device)
             else:
-                secret = TF.resize(images.to(device), (128, 128))
+                secret = TF.resize(images.to(device), (128, 128)).clone()
 
                 # Use mixed precision autocast
                 with autocast(device_type='cuda'):
@@ -269,7 +269,7 @@ def train(prep_net: torch.nn.Module,
                     
                     if attacks:
                         # Apply a random attack during training
-                        attacked_stego = random_attack(stego)
+                        attacked_stego = random_attack(stego).clone()
                         secret_revealed = reveal_net(attacked_stego)
                     else:
                         secret_revealed = reveal_net(stego)
@@ -383,11 +383,11 @@ def test(prep_net: nn.Module,
             if i % 2 == 0:
                 cover = images.to(device)
             else:
-                secret = TF.resize(images.to(device), (128, 128))
+                secret = TF.resize(images.to(device), (128, 128)).clone()
                 secret_prepared = prep_net(secret)
                 stego = hide_net(cover, secret_prepared)
                 # Apply the specified attack(s) (can be a single attack or a list)
-                attacked_stego = apply_attacks(stego, attacks)
+                attacked_stego = apply_attacks(stego, attacks).clone()
                 secret_revealed = reveal_net(attacked_stego)
 
                 cover_loss = F.mse_loss(stego, cover)  
