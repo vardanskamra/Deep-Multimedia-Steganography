@@ -42,7 +42,7 @@ def attack_gaussian(image, sigma=1.0):
 
 def attack_salt_and_pepper(image, amount=0.05, s_vs_p=0.5):
     """Applies salt-and-pepper noise by modifying the tensor directly."""
-    image_np = image.detach().cpu().numpy()  # Detach to prevent autograd issues
+    image_np = image.detach().cpu().numpy().copy()  # Detach to prevent autograd issues
     noise = np.random.rand(*image_np.shape)
     image_np[noise < amount * s_vs_p] = 0.0
     image_np[noise > 1 - amount * (1 - s_vs_p)] = 1.0
