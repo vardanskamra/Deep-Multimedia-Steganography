@@ -238,6 +238,8 @@ def train(prep_net: torch.nn.Module,
             'loss': [], 'psnr': [], 'ssim': [],
             'nc': [], 'pixel_loss_cover_stego': [], 'pixel_loss_secret_revealed': []
         })
+        
+        print(f"Left at epoch {start_epoch-1}...")
     else:
         metrics = {
             'loss': [], 'psnr': [], 'ssim': [],
