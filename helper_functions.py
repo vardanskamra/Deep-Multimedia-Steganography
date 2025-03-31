@@ -6,10 +6,43 @@ import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.transforms as T
+import torchvision.models as models
 from torchvision.transforms import functional as TF
 from PIL import Image
 from torch.amp import autocast, GradScaler
 from torchmetrics import PeakSignalNoiseRatio, StructuralSimilarityIndexMeasure
+from tqdm import tqdm
+
+
+
+# Perceptual Loss
+
+class PerceptualLoss(nn.Module):
+    def __init__(self, layer_ids=[8, 15], weights=[1.0, 1.0]):
+        """
+        Uses a pretrained VGG16 to compute a perceptual loss.
+        layer_ids: indices of layers in VGG16.features whose output will be used.
+                   For example, layer 8 corresponds roughly to conv2_2, and layer 15 to conv3_3.
+        weights: list of weights for each layer's loss.
+        """
+        super(PerceptualLoss, self).__init__()
+        vgg = models.vgg16(pretrained=True).features
+        self.vgg_layers = vgg.eval()
+        for param in self.vgg_layers.parameters():
+            param.requires_grad = False
+        self.layer_ids = layer_ids
+        self.weights = weights
+
+    def forward(self, input_img, target_img):
+        loss = 0.0
+        x = input_img
+        y = target_img
+        for i, layer in enumerate(self.vgg_layers):
+            x = layer(x)
+            y = layer(y)
+            if i in self.layer_ids:
+                loss += self.weights[self.layer_ids.index(i)] * F.mse_loss(x, y)
+        return loss
 
 
 
@@ -219,12 +252,7 @@ def train(prep_net: torch.nn.Module,
     
     psnr = PeakSignalNoiseRatio().to(device)
     ssim = StructuralSimilarityIndexMeasure(data_range=1.0).to(device)
-    
-    # Hyperparameters for additional loss components:
-    lambda_psnr = 0.2
-    lambda_ssim = 0.2
-    lambda_nc   = 0.2
-    eps = 1e-8  # to avoid division by zero
+    perceptual_loss_fn = PerceptualLoss(layer_ids=[3, 8, 15], weights=[1.0, 1.0]).to(device)
 
     start_epoch = 0
     if checkpoint:
@@ -239,7 +267,7 @@ def train(prep_net: torch.nn.Module,
             'nc': [], 'pixel_loss_cover_stego': [], 'pixel_loss_secret_revealed': []
         })
         
-        print(f"Left at epoch {start_epoch-1}...")
+        print(f"Left at epoch {start_epoch}...")
     else:
         metrics = {
             'loss': [], 'psnr': [], 'ssim': [],
@@ -258,7 +286,7 @@ def train(prep_net: torch.nn.Module,
         epoch_pixel_loss_secret_revealed = 0.0
         num_batches = 0
 
-        for i, (images, _) in enumerate(dataloader):
+        for i, (images, _) in tqdm(enumerate(dataloader)):
             if i % 2 == 0:
                 cover = images.to(device)
             else:
@@ -273,8 +301,8 @@ def train(prep_net: torch.nn.Module,
                     secret_revealed = reveal_net(attacked_stego)
 
                     # Compute losses
-                    cover_loss = F.mse_loss(stego, cover)
-                    secret_loss = F.mse_loss(secret_revealed, secret)
+                    cover_loss = F.mse_loss(stego, cover) + 0.5 * perceptual_loss_fn(stego, cover)
+                    secret_loss = F.mse_loss(secret_revealed, secret) + 0.5 * perceptual_loss_fn(secret_revealed, secret)
 
                 # Backprop secret_loss (all networks)
                 optimizer_prep_hide.zero_grad()
