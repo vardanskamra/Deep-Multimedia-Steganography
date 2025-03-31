@@ -264,33 +264,42 @@ def train(prep_net: torch.nn.Module,
 
                 # Use mixed precision autocast
                 with autocast(device_type='cuda'):
+    # Forward pass
                     secret_prepared = prep_net(secret)
                     stego = hide_net(cover, secret_prepared)
-                    
-                    if attacks:
-                        # Apply a random attack during training
-                        attacked_stego = random_attack(stego).clone()
-                        secret_revealed = reveal_net(attacked_stego)
-                    else:
-                        secret_revealed = reveal_net(stego)
+                    attacked_stego = random_attack(stego) if attacks else stego
+                    secret_revealed = reveal_net(attacked_stego)
 
-                     # --- Compute partial losses ---
-                    cover_loss = F.mse_loss(stego, cover)  # cover reconstruction
-                    secret_loss = F.mse_loss(secret_revealed, secret)  # secret reconstruction
-                
-                # Backprop cover loss for prep/hide:
+                    # Compute losses
+                    cover_loss = F.mse_loss(stego, cover)
+                    secret_loss = F.mse_loss(secret_revealed, secret)
+
+                # Backprop secret_loss (affects ALL networks)
                 optimizer_prep_hide.zero_grad()
-                scaler.scale(cover_loss).backward(retain_graph=True)
-                scaler.unscale_(optimizer_prep_hide)
-                torch.nn.utils.clip_grad_norm_(list(prep_net.parameters()) + list(hide_net.parameters()), max_norm=prep_hide_max_norm)
-                optimizer_prep_hide.step()
-
-                # Backprop secret loss for all networks (including reveal):
                 optimizer_reveal.zero_grad()
-                scaler.scale(beta * secret_loss).backward()
+
+                # 1. Backprop secret_loss first
+                scaler.scale(secret_loss).backward(retain_graph=True)  # Keep graph for next backward
+
+                # 2. Backprop cover_loss (only hide/prep networks)
+                # Skip reveal_net parameters
+                reveal_params = list(reveal_net.parameters())
+                params_to_update = [
+                    p for p in list(prep_net.parameters()) + list(hide_net.parameters())
+                    if p not in reveal_params
+                ]
+
+                scaler.scale(cover_loss).backward(inputs=params_to_update)  # Only compute gradients for prep/hide
+
+                # Clip gradients
+                scaler.unscale_(optimizer_prep_hide)
+                torch.nn.utils.clip_grad_norm_(params_to_update, prep_hide_max_norm)
                 scaler.unscale_(optimizer_reveal)
-                torch.nn.utils.clip_grad_norm_(list(reveal_net.parameters()), max_norm=reveal_max_norm)
-                optimizer_reveal.step()
+                torch.nn.utils.clip_grad_norm_(reveal_params, reveal_max_norm)
+
+                # Update optimizers
+                scaler.step(optimizer_prep_hide)
+                scaler.step(optimizer_reveal)
                 scaler.update()
                 
                 # For logging & metrics
