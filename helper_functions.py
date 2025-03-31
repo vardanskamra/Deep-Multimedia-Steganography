@@ -279,7 +279,7 @@ def train(prep_net: torch.nn.Module,
                 optimizer_reveal.zero_grad()
 
                 # 1. Backprop secret_loss first
-                scaler.scale(secret_loss).backward(retain_graph=True)
+                scaler.scale(beta * secret_loss).backward(retain_graph=True)
 
                 # 2. Backprop cover_loss (only prep/hide)
                 # Identify parameters to update (exclude reveal_net)
