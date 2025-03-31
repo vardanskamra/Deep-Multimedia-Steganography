@@ -48,7 +48,7 @@ def attack_salt_and_pepper(image, amount=0.05, s_vs_p=0.5):
     image_np[noise > 1 - amount * (1 - s_vs_p)] = 1.0
     return torch.from_numpy(image_np).to(image.device)
 
-def attack_jpeg(image, quality=50):
+def attack_jpeg(image, quality=70):
     """Applies JPEG compression by converting to PIL, saving, and reloading."""
     if image.dim() == 4:  # Handle batch processing
         return torch.stack([attack_jpeg(img, quality) for img in image])
