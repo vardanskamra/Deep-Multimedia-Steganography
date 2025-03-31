@@ -264,7 +264,7 @@ def train(prep_net: torch.nn.Module,
 
                 # Use mixed precision autocast
                 with autocast(device_type='cuda'):
-    # Forward pass
+                    # Forward pass
                     secret_prepared = prep_net(secret)
                     stego = hide_net(cover, secret_prepared)
                     attacked_stego = random_attack(stego) if attacks else stego
