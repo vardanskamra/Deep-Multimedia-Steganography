@@ -274,30 +274,29 @@ def train(prep_net: torch.nn.Module,
                     cover_loss = F.mse_loss(stego, cover)
                     secret_loss = F.mse_loss(secret_revealed, secret)
 
-                # Backprop secret_loss (affects ALL networks)
+                # Backprop secret_loss (all networks)
                 optimizer_prep_hide.zero_grad()
                 optimizer_reveal.zero_grad()
 
                 # 1. Backprop secret_loss first
-                scaler.scale(secret_loss).backward(retain_graph=True)  # Keep graph for next backward
+                scaler.scale(secret_loss).backward(retain_graph=True)
 
-                # 2. Backprop cover_loss (only hide/prep networks)
-                # Skip reveal_net parameters
-                reveal_params = list(reveal_net.parameters())
+                # 2. Backprop cover_loss (only prep/hide)
+                # Identify parameters to update (exclude reveal_net)
+                reveal_param_ids = {id(param) for param in reveal_net.parameters()}
                 params_to_update = [
                     p for p in list(prep_net.parameters()) + list(hide_net.parameters())
-                    if p not in reveal_params
+                    if id(p) not in reveal_param_ids  # ✅ Check by object identity
                 ]
 
-                scaler.scale(cover_loss).backward(inputs=params_to_update)  # Only compute gradients for prep/hide
+                scaler.scale(cover_loss).backward(inputs=params_to_update)
 
-                # Clip gradients
+                # Clip gradients and update
                 scaler.unscale_(optimizer_prep_hide)
                 torch.nn.utils.clip_grad_norm_(params_to_update, prep_hide_max_norm)
                 scaler.unscale_(optimizer_reveal)
-                torch.nn.utils.clip_grad_norm_(reveal_params, reveal_max_norm)
+                torch.nn.utils.clip_grad_norm_(reveal_net.parameters(), reveal_max_norm)
 
-                # Update optimizers
                 scaler.step(optimizer_prep_hide)
                 scaler.step(optimizer_reveal)
                 scaler.update()
