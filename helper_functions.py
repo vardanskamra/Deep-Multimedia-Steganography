@@ -252,7 +252,7 @@ def train(prep_net: torch.nn.Module,
     
     psnr = PeakSignalNoiseRatio().to(device)
     ssim = StructuralSimilarityIndexMeasure(data_range=1.0).to(device)
-    perceptual_loss_fn = PerceptualLoss(layer_ids=[3, 8, 15], weights=[1.0, 1.0]).to(device)
+    perceptual_loss_fn = PerceptualLoss(layer_ids=[8, 15], weights=[1.0, 1.0]).to(device)
 
     start_epoch = 0
     if checkpoint:
