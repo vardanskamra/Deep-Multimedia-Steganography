@@ -179,6 +179,8 @@ cython_debug/
 .pypirc
 
 frames/
+frames_secret/
+frames_cover/
 stego_frames/
 models/*.pth
 models/**/*.pth
