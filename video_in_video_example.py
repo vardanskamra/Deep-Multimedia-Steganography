@@ -1,15 +1,12 @@
 import torch
 import cv2
-
 import os
-import sys
 
 from torch import nn
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 from PIL import Image
 from torchmetrics import PeakSignalNoiseRatio, StructuralSimilarityIndexMeasure
-from torchvision.transforms import functional as TF
 from torchvision.transforms import ToPILImage
 from utils.metrics import loss_function
 from utils.metrics import normalized_correlation
@@ -19,23 +16,31 @@ from models.model_9 import PrepNetwork, HidingNetwork, RevealNetwork
 from tqdm import tqdm
 
 
+
 class VideoFramesDataset(Dataset):
-    def __init__(self, frames_folder, transform=None):
-        self.frames_folder = frames_folder
-        self.transform = transform
-        self.frame_files = sorted(os.listdir(frames_folder))  # Ensure order is maintained
+    def __init__(self, frames_folder_cover, frames_folder_secret, transform1, transform2):
+        self.frames_folder_cover = frames_folder_cover
+        self.frames_folder_secret = frames_folder_secret
+        self.transform1 = transform1
+        self.transform2 = transform2
+        self.frame_files_cover = sorted(os.listdir(frames_folder_cover))  # Ensure order is maintained
+        self.frame_files_secret = sorted(os.listdir(frames_folder_secret))  # Ensure order is maintained
     
     def __len__(self):
-        return len(self.frame_files)
+        return min(len(self.frame_files_cover), len(self.frame_files_secret)) 
     
     def __getitem__(self, idx):
-        img_path = os.path.join(self.frames_folder, self.frame_files[idx])
-        image = Image.open(img_path).convert("RGB")
-        if self.transform:
-            image = self.transform(image)
-        return image
+        img_path_cover = os.path.join(self.frames_folder_cover, self.frame_files_cover[idx])
+        img_path_secret = os.path.join(self.frames_folder_secret, self.frame_files_secret[idx])
+        cover = Image.open(img_path_cover).convert("RGB")
+        secret = Image.open(img_path_secret).convert("RGB")
+        cover = self.transform1(cover)   # 256x256
+        secret = self.transform2(secret) # 128x128
+        return cover, secret
+
 
 def extract_frames(video_path, output_folder="video_processing/frames"):
+    
     # Create output folder if it doesn't exist
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
@@ -58,10 +63,7 @@ def extract_frames(video_path, output_folder="video_processing/frames"):
     
     cap.release()
     print(f"Extracted {frame_count} frames to '{output_folder}' folder.")
-    
-def convert_image_to_tensor(image_path, transform):
-    image = Image.open(image_path).convert("RGB")
-    return transform(image)
+
 
 
 def process_video(prep_net: torch.nn.Module,
@@ -114,11 +116,11 @@ def process_video(prep_net: torch.nn.Module,
     frame_index = 0
     
     with torch.inference_mode():  
-        secret = secret.to(device)
-        secret_prepared = prep_net(secret)
-        for images in tqdm(dataloader):
-            cover = images.to(device)
-
+        for cover, secret in tqdm(dataloader):
+            cover = cover.to(device)
+            secret = secret.to(device)
+            secret_prepared = prep_net(secret)
+            
             stego = hide_net(cover, secret_prepared)
             secret_revealed = reveal_net(stego)
 
@@ -218,26 +220,26 @@ reveal_net.to(device)
 
 
 # Video to Frames
-video_file = "video_processing/input_video2.mp4"  
-extract_frames(video_file)
+video_file_cover = "video_processing/input_video1.mp4"  
+extract_frames(video_file_cover, output_folder="video_processing/frames_cover") 
+video_file_secret = "video_processing/input_video2.mp4"  
+extract_frames(video_file_secret, output_folder="video_processing/frames_secret")
 # Define transforms
-transform_2 = transforms.Compose([
+transform1 = transforms.Compose([
     transforms.ToTensor(),
     transforms.Resize((256, 256)) 
 ])
-transform_1 = transforms.Compose([
+transform2 = transforms.Compose([
     transforms.ToTensor(),
     transforms.Resize((128, 128)) 
 ])
-# Create dataset and dataloader
-dataset = VideoFramesDataset("video_processing/frames", transform=transform_2)
-dataloader = DataLoader(dataset, batch_size=16, shuffle=False, drop_last=True)  # No shuffling to maintain order
+# Create dataset and dataloader"video_processing/frames_cover"
+dataset = VideoFramesDataset("video_processing/frames_cover", "video_processing/frames_secret", transform1, transform2)
+dataloader = DataLoader(dataset, batch_size=4, shuffle=False, drop_last=True)  # No shuffling to maintain order
 print("Dataset and DataLoader created successfully.")
-# Process image
-image_file = "video_processing/watermark2.jpg" 
-secret = convert_image_to_tensor(image_file, transform_1).unsqueeze(0).repeat(16, 1, 1, 1)
 
 # Inference
-process_video(prep_net, hide_net, reveal_net, dataloader, secret, loss_function, device=device)
+process_video(prep_net, hide_net, reveal_net, dataloader, loss_function, device=device)
 # Reconstruct Video
 create_video_from_frames(frames_folder="video_processing/stego_frames")
+
