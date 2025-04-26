@@ -1,3 +1,4 @@
+import torch
 import matplotlib.pyplot as plt
 
 def visualize_images(cover, secret, stego, secret_revealed):
@@ -87,3 +88,37 @@ def plot_metrics(metrics):
     print(f"Final Normalized Correlation (NC): {metrics['nc'][-1]:.4f}")
     print(f"Final Pixel Loss (Cover-Stego): {metrics['pixel_loss_cover_stego'][-1]:.4f}")
     print(f"Final Pixel Loss (Secret-Revealed): {metrics['pixel_loss_secret_revealed'][-1]:.4f}\n")
+
+def differentiate_images(cover, stego):
+    """
+    Visualizes the difference between the stego and cover images.
+    It shows:
+      - The raw absolute difference.
+      - The difference enhanced by a factor of 5 (clipped to [0, 1]).
+      
+    Args:
+        cover (Tensor): cover image tensor of shape (C, H, W) with values in [0, 1].
+        stego (Tensor): stego image tensor of shape (C, H, W) with values in [0, 1].
+    """
+    # Compute the absolute difference
+    diff = torch.abs(stego - cover)
+    # Enhance the difference by a factor of 5 and clip to [0, 1]
+    diff_enhanced_5 = torch.clamp(diff * 5, 0, 1)
+    diff_enhanced_10 = torch.clamp(diff * 10, 0, 1)
+    
+    
+    plt.figure(figsize=(15, 5))
+    plt.subplot(1, 3, 1)
+    plt.title("Absolute Difference")
+    plt.imshow(diff.permute(1, 2, 0).cpu().numpy())
+    
+    plt.subplot(1, 3, 2)
+    plt.title("5x Enhanced Difference")
+    plt.imshow(diff_enhanced_5.permute(1, 2, 0).cpu().numpy())
+    
+    plt.subplot(1, 3, 3)
+    plt.title("10x Enhanced Difference")
+    plt.imshow(diff_enhanced_10.permute(1, 2, 0).cpu().numpy())
+    
+    plt.tight_layout()
+    plt.show()
