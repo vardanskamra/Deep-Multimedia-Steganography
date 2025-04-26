@@ -184,3 +184,4 @@ frames_cover/
 stego_frames/
 models/*.pth
 models/**/*.pth
+models/
