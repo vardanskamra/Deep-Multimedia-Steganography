@@ -8,3 +8,4 @@ pillow
 ipykernel
 opencv-python
 tqdm
+flask
