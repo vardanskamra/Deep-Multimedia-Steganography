@@ -15,6 +15,17 @@ from tqdm import tqdm
 
 
 
+# Results Required:
+# Epochs Table: SSIM, Perceptual Loss, NC, Cover Loss, Secret Loss
+# Images Table (6-7)
+# Image Difference Residual Table (6-7)
+# Atacks Table
+# Comparitive Analysis
+# Diagram
+
+
+
+
 # Perceptual Loss
 
 class PerceptualLoss(nn.Module):
