@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2 class="text-center">Hide Secret Image</h2>
+
+<form method="POST" enctype="multipart/form-data" class="d-flex flex-column align-items-center">
+  <div class="d-flex justify-content-center">
+    <div class="p-3">
+      <label><b>Cover Image</b></label><br>
+      <input type="file" name="cover" class="form-control-file" required onchange="previewImage(event, 'cover-preview')">
+      <img id="cover-preview" src="#" alt="Cover Preview" class="img-fluid mt-2" style="max-height: 200px; display:none;">
+    </div>
+
+    <div class="p-3">
+      <label><b>Secret Image</b></label><br>
+      <input type="file" name="secret" class="form-control-file" required onchange="previewImage(event, 'secret-preview')">
+      <img id="secret-preview" src="#" alt="Secret Preview" class="img-fluid mt-2" style="max-height: 200px; display:none;">
+    </div>
+  </div>
+
+  <button type="submit" class="btn btn-primary mt-3">Hide</button>
+</form>
+
+{% if stego_url %}
+<hr>
+<h4 class="text-center">Stego Image</h4>
+<div class="text-center">
+  <img src="{{ stego_url }}" class="img-fluid mt-2" style="max-height: 300px;">
+  <br><br>
+  <a href="{{ stego_url }}" download="stego.png" class="btn btn-success mt-2 mb-4">Download Stego Image</a>
+</div>
+{% endif %}
+
+<script>
+function previewImage(event, id) {
+    var reader = new FileReader();
+    reader.onload = function(){
+        var output = document.getElementById(id);
+        output.src = reader.result;
+        output.style.display = 'block';
+    }
+    reader.readAsDataURL(event.target.files[0]);
+}
+</script>
+{% endblock %}

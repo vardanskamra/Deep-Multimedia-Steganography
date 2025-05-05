@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="jumbotron text-center">
+  <h1 class="display-4">Welcome to Deep Steganography</h1>
+  <p class="lead">Hide and reveal secret images with our U‑Net steganography model.</p>
+  <hr class="my-4">
+  <a class="btn btn-primary btn-lg" href="{{ url_for('hide') }}">Hide Image</a>
+  <a class="btn btn-secondary btn-lg" href="{{ url_for('reveal') }}">Reveal Secret</a>
+</div>
+{% endblock %}
