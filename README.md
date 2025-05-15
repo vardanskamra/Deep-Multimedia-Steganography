@@ -13,8 +13,7 @@ My system follows the triple model steganographic pipeline of Preparation, Hidin
 1. **Clone the Repository**:
     ```bash
     git clone https://github.com/vardanskamra/Deep-Multimedia-Steganography
-    cd sentiment_analysis
-    ```
+    cd Deep-Multimedia-Steganography
 
 2. **Create a Virtual Environment**:
     ```bash
