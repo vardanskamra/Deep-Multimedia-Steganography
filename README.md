@@ -44,4 +44,22 @@ My system follows the triple model steganographic pipeline of Preparation, Hidin
 
 - **Access the Application**: Once the server is running, access the application by opening a web browser and navigating to `http://localhost:5000`.
 
-   
+- **Upload the Cover and Secret Images and Download the Stego Image**: 
+    ![gif1](./images/gif1.gif)
+
+- **Upload the Stego Image and Download the Revealed Image**
+    ![gif2](./images/gif2.gif)
+
+## Model Performance 
+
+The final model achieves a mean PSNR of 33.7 dB and SSIM exceeding 0.95 for the cover–stego pair. The model demonstrates a normalized correlation (NC) of up to 0.99 for the secret–revealed pair.
+
+- **Visual Performance**: 
+    ![performance](./images/cover-secret-stego-revealed.png)
+
+    Minimizing the difference between Cover and Stego was the main priority. You can see, there is no visual difference between the cover and stego images.
+
+- **Visual Performance with Enhanced Difference**: 
+    ![performance](./images/cover-stego-enhanced.png)
+
+    Even after enhancing the difference 10 times, there is no sign of secret leaking.
